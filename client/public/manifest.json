@@ -1,0 +1,112 @@
+{
+  "short_name": "WeatherApp",
+  "name": "Interactive Weather App",
+  "description": "A comprehensive weather application with location services, forecasting, and air quality monitoring",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable any"
+    }
+  ],
+  "start_url": "./",
+  "display": "standalone",
+  "theme_color": "#1e40af",
+  "background_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["weather", "utilities", "lifestyle"],
+  "screenshots": [
+    {
+      "src": "screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Weather dashboard view"
+    },
+    {
+      "src": "screenshot-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile weather view"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Current Weather",
+      "short_name": "Current",
+      "description": "View current weather conditions",
+      "url": "/?shortcut=current",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Forecast",
+      "short_name": "Forecast",
+      "description": "View weather forecast",
+      "url": "/?shortcut=forecast",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Air Quality",
+      "short_name": "Air Quality",
+      "description": "Check air pollution levels",
+      "url": "/?shortcut=air-quality",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+weather",
+      "url": "/?location=%s"
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.weatherapp.interactive"
+    }
+  ],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "edge_side_panel": {
+    "preferred_width": 320
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}

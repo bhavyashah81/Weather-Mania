@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    
+    <!-- Viewport and PWA Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e40af" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#1e40af" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
+    
+    <!-- App Description and SEO -->
+    <meta name="description" content="Interactive Weather App - Get real-time weather information, forecasts, air quality data, and interactive maps with location services." />
+    <meta name="keywords" content="weather, forecast, air quality, interactive map, location services, PWA, weather app" />
+    <meta name="author" content="Weather App Team" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Interactive Weather App" />
+    <meta property="og:description" content="Get real-time weather information, forecasts, and air quality data with interactive maps" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://weather-app.com" />
+    <meta property="og:image" content="%PUBLIC_URL%/logo512.png" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Interactive Weather App" />
+    <meta name="twitter:description" content="Get real-time weather information, forecasts, and air quality data" />
+    <meta name="twitter:image" content="%PUBLIC_URL%/logo512.png" />
+    
+    <!-- Apple PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Weather App" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileColor" content="#1e40af" />
+    <meta name="msapplication-TileImage" content="%PUBLIC_URL%/logo192.png" />
+    <meta name="msapplication-config" content="%PUBLIC_URL%/browserconfig.xml" />
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://api.openweathermap.org" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <title>Interactive Weather App</title>
+  </head>
+  <body>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+        <h2>JavaScript Required</h2>
+        <p>This application requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
+    
+    <div id="root"></div>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      // Register service worker for PWA functionality
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('%PUBLIC_URL%/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                console.log('SW update found');
+                const newWorker = registration.installing;
+                
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New content is available, prompt user to refresh
+                    if (confirm('New version available! Refresh to update?')) {
+                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      window.location.reload();
+                    }
+                  }
+                });
+              });
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+        
+        // Listen for service worker updates
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+      }
+      
+      // Install prompt handling
+      let deferredPrompt;
+      
+      window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('PWA install prompt available');
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show custom install button or banner
+        const installBanner = document.createElement('div');
+        installBanner.id = 'install-banner';
+        installBanner.innerHTML = `
+          <div style="
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            background: linear-gradient(135deg, #1e40af, #3b82f6); 
+            color: white; 
+            padding: 10px 20px; 
+            text-align: center; 
+            z-index: 10000;
+            font-family: Inter, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+          ">
+            <span>Install Weather App for quick access and offline use</span>
+            <button id="install-button" style="
+              margin-left: 15px; 
+              background: rgba(255,255,255,0.2); 
+              border: 1px solid rgba(255,255,255,0.3);
+              color: white; 
+              padding: 5px 15px; 
+              border-radius: 20px; 
+              cursor: pointer;
+              font-size: 12px;
+            ">
+              Install
+            </button>
+            <button id="dismiss-button" style="
+              margin-left: 10px; 
+              background: transparent; 
+              border: none;
+              color: white; 
+              cursor: pointer;
+              font-size: 18px;
+              padding: 0 5px;
+            ">
+              ×
+            </button>
+          </div>
+        `;
+        
+        document.body.appendChild(installBanner);
+        
+        document.getElementById('install-button').addEventListener('click', () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            console.log('PWA install choice:', choiceResult.outcome);
+            deferredPrompt = null;
+            document.getElementById('install-banner').remove();
+          });
+        });
+        
+        document.getElementById('dismiss-button').addEventListener('click', () => {
+          document.getElementById('install-banner').remove();
+        });
+      });
+      
+      // Handle successful installation
+      window.addEventListener('appinstalled', (evt) => {
+        console.log('PWA was installed successfully');
+        const banner = document.getElementById('install-banner');
+        if (banner) banner.remove();
+      });
+      
+      // Network status detection
+      function updateNetworkStatus() {
+        const statusIndicator = document.getElementById('network-status');
+        if (navigator.onLine) {
+          if (statusIndicator) statusIndicator.remove();
+        } else {
+          if (!statusIndicator) {
+            const offlineBanner = document.createElement('div');
+            offlineBanner.id = 'network-status';
+            offlineBanner.innerHTML = `
+              <div style="
+                position: fixed; 
+                bottom: 0; 
+                left: 0; 
+                right: 0; 
+                background: linear-gradient(135deg, #ef4444, #dc2626); 
+                color: white; 
+                padding: 10px 20px; 
+                text-align: center; 
+                z-index: 10000;
+                font-family: Inter, sans-serif;
+                font-size: 14px;
+              ">
+                📱 You're offline. Some features may not be available.
+              </div>
+            `;
+            document.body.appendChild(offlineBanner);
+          }
+        }
+      }
+      
+      window.addEventListener('online', updateNetworkStatus);
+      window.addEventListener('offline', updateNetworkStatus);
+      updateNetworkStatus();
+    </script>
+  </body>
+</html>
