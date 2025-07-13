@@ -1,4 +1,4 @@
-# Interactive_Weather_App
+# Weather-Mania
 An Interactive weather app that can be used by every day users.
 
 Some Core Functionalities are...
