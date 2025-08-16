@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MapPin, 
@@ -56,6 +56,7 @@ interface ForecastData {
     main: {
       temp: number;
       humidity: number;
+      feels_like: number;
     };
     weather: Array<{
       main: string;
@@ -69,10 +70,30 @@ interface ForecastData {
   }>;
 }
 
+// ✅ FIXED: Proper TypeScript interface for Air Quality
+interface AirQualityData {
+  list: Array<{
+    main: {
+      aqi: number;
+    };
+    components: {
+      co: number;
+      no: number;
+      no2: number;
+      o3: number;
+      so2: number;
+      pm2_5: number;
+      pm10: number;
+      nh3: number;
+    };
+  }>;
+}
+
 const App: React.FC = () => {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
-  const [airQuality, setAirQuality] = useState<any>(null);
+  // ✅ FIXED: Replaced 'any' with proper type
+  const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -228,7 +249,7 @@ const App: React.FC = () => {
           className="text-center mb-8"
         >
           <h1 className="text-5xl font-bold text-white mb-4 gradient-text">
-            Weather App 🌤️
+            Weather-Mania 🌤️
           </h1>
           <p className="text-white/80 text-lg">Your comprehensive weather companion</p>
         </motion.header>
@@ -243,7 +264,7 @@ const App: React.FC = () => {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               placeholder="Search for a city..."
               className="w-full px-6 py-4 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
             />
@@ -313,8 +334,12 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
               className="text-center mb-8"
             >
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-              <p className="text-white mt-4">Loading weather data...</p>
+              <div className="relative">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                <div className="absolute inset-0 animate-pulse rounded-full h-12 w-12 border-2 border-white/30"></div>
+              </div>
+              {/* ✅ IMPROVED: Enhanced loading message with animation */}
+              <p className="text-white mt-4 animate-pulse">Fetching latest weather data...</p>
             </motion.div>
           )}
         </AnimatePresence>
