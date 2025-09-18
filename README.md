@@ -13,4 +13,3 @@ Interactive Radar & Maps: Animated radar loops for precipitation, cloud cover, a
 
 Severe Weather Alerts: Push notifications for watches, warnings, and advisories (flood, storm, heatwave), with customizable alert thresholds.
 
-<img width="1871" height="848" alt="image" src="https://github.com/user-attachments/assets/64727288-da9d-4465-b30c-ac65f9188b7d" />
