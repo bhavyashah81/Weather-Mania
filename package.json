@@ -4,11 +4,12 @@
   "description": "A comprehensive weather app with location services, interactive maps, and PWA capabilities",
   "main": "server/index.js",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "cd server && node index.js",
+    "dev": "cd server && node index.js",
     "server": "cd server && npm run dev",
-    "client": "cd client && npm start",
-    "build": "cd client && npm run build",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "client": "echo 'Client is now served directly from server at http://localhost:8000'",
+    "build": "echo 'No build needed - using simple HTML/CSS/JS'",
+    "install-all": "npm install && cd server && npm install",
     "python-setup": "cd python && pip install -r requirements.txt"
   },
   "keywords": ["weather", "react", "nodejs", "pwa", "maps", "geolocation"],

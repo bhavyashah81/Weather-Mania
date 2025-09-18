@@ -1,27 +1,5 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MapPin, 
-  Search, 
-  Sun, 
-  Cloud, 
-  CloudRain, 
-  Wind, 
-  Thermometer, 
-  Droplets, 
-  Eye, 
-  Gauge,
-  TrendingUp,
-  RefreshCw,
-  Map as MapIcon
-} from 'lucide-react';
-import WeatherCard from './components/WeatherCard';
-import ForecastChart from './components/ForecastChart';
-import InteractiveMap from './components/InteractiveMap';
-import AirQualityCard from './components/AirQualityCard';
-import WeatherMetrics from './components/WeatherMetrics';
-import { WeatherService } from './services/WeatherService';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+// import './App.css'; // Removed to avoid PostCSS issues
 
 interface WeatherData {
   main: {
@@ -37,100 +15,22 @@ interface WeatherData {
   }>;
   wind: {
     speed: number;
-    deg: number;
-  };
-  clouds: {
-    all: number;
   };
   visibility: number;
   name: string;
-  coord: {
-    lat: number;
-    lon: number;
-  };
 }
 
-interface ForecastData {
-  list: Array<{
-    dt: number;
-    main: {
-      temp: number;
-      humidity: number;
-      feels_like: number;
-    };
-    weather: Array<{
-      main: string;
-      description: string;
-      icon: string;
-    }>;
-    wind: {
-      speed: number;
-    };
-    dt_txt: string;
-  }>;
-}
-
-// ✅ FIXED: Proper TypeScript interface for Air Quality
-interface AirQualityData {
-  list: Array<{
-    main: {
-      aqi: number;
-    };
-    components: {
-      co: number;
-      no: number;
-      no2: number;
-      o3: number;
-      so2: number;
-      pm2_5: number;
-      pm10: number;
-      nh3: number;
-    };
-  }>;
-}
-
-const App: React.FC = () => {
+function App() {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
-  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
-  // ✅ FIXED: Replaced 'any' with proper type
-  const [airQuality, setAirQuality] = useState<AirQualityData | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showMap, setShowMap] = useState(false);
-  const [backgroundClass, setBackgroundClass] = useState('weather-background');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const weatherService = new WeatherService();
-
-  // Get user's location on component mount
+  // Get user's location and weather on component mount
   useEffect(() => {
     getUserLocation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Update background based on weather
-  useEffect(() => {
-    if (weatherData) {
-      const weatherMain = weatherData.weather[0]?.main.toLowerCase();
-      switch (weatherMain) {
-        case 'clear':
-          setBackgroundClass('sunny-background');
-          break;
-        case 'rain':
-        case 'drizzle':
-          setBackgroundClass('rainy-background');
-          break;
-        case 'clouds':
-          setBackgroundClass('cloudy-background');
-          break;
-        case 'snow':
-          setBackgroundClass('snowy-background');
-          break;
-        default:
-          setBackgroundClass('weather-background');
-      }
-    }
-  }, [weatherData]);
 
   const getUserLocation = () => {
     setLoading(true);
@@ -141,42 +41,33 @@ const App: React.FC = () => {
             lat: position.coords.latitude,
             lon: position.coords.longitude
           };
-          setLocation(coords);
-          fetchWeatherData(coords);
+          fetchWeatherData(coords.lat, coords.lon);
         },
         (error) => {
           console.error('Error getting location:', error);
-          setError('Unable to get your location. Please search for a city.');
-          setLoading(false);
           // Default to New York if location fails
-          const defaultCoords = { lat: 40.7128, lon: -74.0060 };
-          setLocation(defaultCoords);
-          fetchWeatherData(defaultCoords);
+          fetchWeatherData(40.7128, -74.0060);
         }
       );
     } else {
-      setError('Geolocation is not supported by this browser.');
-      setLoading(false);
+      // Default to New York if geolocation not supported
+      fetchWeatherData(40.7128, -74.0060);
     }
   };
 
-  const fetchWeatherData = async (coords: { lat: number; lon: number }) => {
+  const fetchWeatherData = async (lat: number, lon: number) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch current weather
-      const weather = await weatherService.getCurrentWeather(coords.lat, coords.lon);
-      setWeatherData(weather);
-
-      // Fetch forecast
-      const forecast = await weatherService.getForecast(coords.lat, coords.lon);
-      setForecastData(forecast);
-
-      // Fetch air quality
-      const airData = await weatherService.getAirQuality(coords.lat, coords.lon);
-      setAirQuality(airData);
-
+      const response = await fetch(`http://localhost:8000/api/weather/current?lat=${lat}&lon=${lon}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch weather data');
+      }
+      
+      const data = await response.json();
+      setWeatherData(data);
     } catch (err) {
       setError('Failed to fetch weather data. Please try again.');
       console.error('Weather fetch error:', err);
@@ -194,200 +85,335 @@ const App: React.FC = () => {
       setError(null);
 
       // First geocode the search query
-      const geoData = await weatherService.geocodeLocation(searchQuery);
+      const geoResponse = await fetch(`http://localhost:8000/api/geocoding?q=${encodeURIComponent(searchQuery)}`);
+      
+      if (!geoResponse.ok) {
+        throw new Error('Failed to find location');
+      }
+      
+      const geoData = await geoResponse.json();
+      
       if (geoData && geoData.length > 0) {
-        const coords = {
-          lat: geoData[0].lat,
-          lon: geoData[0].lon
-        };
-        setLocation(coords);
-        await fetchWeatherData(coords);
+        await fetchWeatherData(geoData[0].lat, geoData[0].lon);
       } else {
         setError('Location not found. Please try a different search term.');
       }
     } catch (err) {
       setError('Failed to search location. Please try again.');
       console.error('Search error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const refreshWeather = () => {
-    if (location) {
-      fetchWeatherData(location);
-    }
-  };
-
-  const getWeatherIcon = (iconCode: string) => {
-    // Map OpenWeather icons to Lucide icons
-    const iconMap: { [key: string]: React.ReactNode } = {
-      '01d': <Sun className="weather-icon text-yellow-400" />,
-      '01n': <Sun className="weather-icon text-blue-200" />,
-      '02d': <Cloud className="weather-icon text-gray-300" />,
-      '02n': <Cloud className="weather-icon text-gray-400" />,
-      '03d': <Cloud className="weather-icon text-gray-400" />,
-      '03n': <Cloud className="weather-icon text-gray-500" />,
-      '04d': <Cloud className="weather-icon text-gray-500" />,
-      '04n': <Cloud className="weather-icon text-gray-600" />,
-      '09d': <CloudRain className="weather-icon text-blue-400" />,
-      '09n': <CloudRain className="weather-icon text-blue-500" />,
-      '10d': <CloudRain className="weather-icon text-blue-400" />,
-      '10n': <CloudRain className="weather-icon text-blue-500" />,
-      '11d': <CloudRain className="weather-icon text-purple-400" />,
-      '11n': <CloudRain className="weather-icon text-purple-500" />,
+  const getWeatherEmoji = (weatherMain: string) => {
+    const weatherMap: { [key: string]: string } = {
+      'Clear': '☀️',
+      'Clouds': '☁️',
+      'Rain': '🌧️',
+      'Drizzle': '🌦️',
+      'Thunderstorm': '⛈️',
+      'Snow': '❄️',
+      'Mist': '🌫️',
+      'Fog': '🌫️',
+      'Haze': '🌫️'
     };
     
-    return iconMap[iconCode] || <Sun className="weather-icon text-yellow-400" />;
+    return weatherMap[weatherMain] || '🌤️';
   };
 
   return (
-    <div className={`min-h-screen transition-all duration-1000 ${backgroundClass}`}>
-      <div className="container mx-auto px-4 py-8">
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '2rem 1rem',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Header */}
-        <motion.header 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-5xl font-bold text-white mb-4 gradient-text">
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h1 style={{ 
+            fontSize: '3rem', 
+            marginBottom: '0.5rem', 
+            color: 'white',
+            textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+          }}>
             Weather-Mania 🌤️
           </h1>
-          <p className="text-white/80 text-lg">Your comprehensive weather companion</p>
-        </motion.header>
+          <p style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,0.9)' }}>
+            Your comprehensive weather companion
+          </p>
+        </div>
 
         {/* Search Bar */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md mx-auto mb-8"
-        >
-          <form onSubmit={handleSearch} className="relative">
+        <div style={{ marginBottom: '2rem' }}>
+          <form onSubmit={handleSearch} style={{ 
+            display: 'flex', 
+            maxWidth: '400px', 
+            margin: '0 auto',
+            gap: '0.5rem'
+          }}>
             <input
               type="text"
               value={searchQuery}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search for a city..."
-              className="w-full px-6 py-4 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+              style={{
+                flex: 1,
+                padding: '1rem',
+                borderRadius: '15px',
+                border: '1px solid rgba(255,255,255,0.3)',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                fontSize: '1rem',
+                backdropFilter: 'blur(10px)'
+              }}
             />
             <button
               type="submit"
               disabled={loading}
-              className="absolute right-2 top-2 p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-all"
+              style={{
+                padding: '1rem 1.5rem',
+                borderRadius: '15px',
+                border: '1px solid rgba(255,255,255,0.3)',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                backdropFilter: 'blur(10px)',
+                fontSize: '1rem'
+              }}
             >
-              <Search className="w-6 h-6 text-white" />
+              🔍
             </button>
           </form>
-        </motion.div>
+        </div>
 
         {/* Action Buttons */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex justify-center gap-4 mb-8"
-        >
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          gap: '1rem', 
+          marginBottom: '2rem',
+          flexWrap: 'wrap'
+        }}>
           <button
             onClick={getUserLocation}
             disabled={loading}
-            className="btn-primary flex items-center gap-2"
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.3)',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              backdropFilter: 'blur(10px)',
+              fontSize: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
           >
-            <MapPin className="w-5 h-5" />
-            Use My Location
+            📍 Use My Location
           </button>
-          
-          <button
-            onClick={refreshWeather}
-            disabled={loading}
-            className="btn-primary flex items-center gap-2"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-
-          <button
-            onClick={() => setShowMap(!showMap)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <MapIcon className="w-5 h-5" />
-            {showMap ? 'Hide Map' : 'Show Map'}
-          </button>
-        </motion.div>
+        </div>
 
         {/* Error Message */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="max-w-md mx-auto mb-6 p-4 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-300/30 text-white text-center"
-            >
-              {error}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {error && (
+          <div style={{
+            maxWidth: '400px',
+            margin: '0 auto 2rem',
+            padding: '1rem',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            border: '1px solid rgba(252, 165, 165, 0.3)',
+            color: 'white',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
 
         {/* Loading State */}
-        <AnimatePresence>
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center mb-8"
-            >
-              <div className="relative">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-                <div className="absolute inset-0 animate-pulse rounded-full h-12 w-12 border-2 border-white/30"></div>
+        {loading && (
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              border: '3px solid rgba(255,255,255,0.3)',
+              borderTop: '3px solid white',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }}></div>
+            <p style={{ color: 'white', fontSize: '1.1rem' }}>
+              Fetching latest weather data...
+            </p>
+          </div>
+        )}
+
+        {/* Weather Card */}
+        {weatherData && !loading && (
+          <div style={{
+            maxWidth: '600px',
+            margin: '0 auto',
+            padding: '2rem',
+            borderRadius: '24px',
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(15px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            textAlign: 'center',
+            color: 'white'
+          }}>
+            {/* Location */}
+            <h2 style={{ 
+              fontSize: '2rem', 
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              📍 {weatherData.name}
+            </h2>
+
+            {/* Weather Icon and Temp */}
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+                {getWeatherEmoji(weatherData.weather[0].main)}
               </div>
-              {/* ✅ IMPROVED: Enhanced loading message with animation */}
-              <p className="text-white mt-4 animate-pulse">Fetching latest weather data...</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <div style={{ 
+                fontSize: '4rem', 
+                fontWeight: 'bold', 
+                marginBottom: '0.5rem',
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              }}>
+                {Math.round(weatherData.main.temp)}°C
+              </div>
+              <p style={{ 
+                fontSize: '1.3rem', 
+                textTransform: 'capitalize',
+                opacity: 0.9
+              }}>
+                {weatherData.weather[0].description}
+              </p>
+            </div>
 
-        {/* Main Content */}
-        <AnimatePresence>
-          {weatherData && !loading && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="grid gap-6"
-            >
-              {/* Current Weather Card */}
-              <WeatherCard 
-                weatherData={weatherData}
-                getWeatherIcon={getWeatherIcon}
-              />
+            {/* Feels Like */}
+            <div style={{
+              padding: '1rem',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              marginBottom: '2rem',
+              display: 'inline-block'
+            }}>
+              🌡️ Feels like {Math.round(weatherData.main.feels_like)}°C
+            </div>
 
-              {/* Weather Metrics */}
-              <WeatherMetrics weatherData={weatherData} />
+            {/* Weather Metrics */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: '1rem',
+              marginTop: '2rem'
+            }}>
+              <div style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💧</div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Humidity</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#60a5fa' }}>
+                  {weatherData.main.humidity}%
+                </div>
+              </div>
+              
+              <div style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📊</div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Pressure</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#4ade80' }}>
+                  {weatherData.main.pressure} hPa
+                </div>
+              </div>
+              
+              <div style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>💨</div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Wind Speed</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#a78bfa' }}>
+                  {Math.round(weatherData.wind.speed * 3.6)} km/h
+                </div>
+              </div>
+              
+              <div style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>👁️</div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Visibility</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#facc15' }}>
+                  {Math.round(weatherData.visibility / 1000)} km
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-              {/* Air Quality */}
-              {airQuality && (
-                <AirQualityCard airQuality={airQuality} />
-              )}
-
-              {/* Interactive Map */}
-              <AnimatePresence>
-                {showMap && location && (
-                  <InteractiveMap 
-                    lat={location.lat} 
-                    lon={location.lon}
-                    weatherData={weatherData}
-                  />
-                )}
-              </AnimatePresence>
-
-              {/* Forecast Chart */}
-              {forecastData && (
-                <ForecastChart forecastData={forecastData} />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Footer */}
+        <div style={{ 
+          textAlign: 'center', 
+          marginTop: '3rem',
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: '0.9rem'
+        }}>
+          <p>Weather data provided by OpenWeatherMap</p>
+          <p style={{ marginTop: '0.5rem' }}>
+            Backend: http://localhost:8000 | Frontend: http://localhost:3000
+          </p>
+        </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          
+          input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+          }
+          
+          button:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.3) !important;
+            transform: translateY(-1px);
+          }
+          
+          @media (max-width: 768px) {
+            h1 {
+              font-size: 2.5rem !important;
+            }
+            .temperature-display {
+              font-size: 3rem !important;
+            }
+          }
+        `
+      }} />
     </div>
   );
-};
+}
 
 export default App;

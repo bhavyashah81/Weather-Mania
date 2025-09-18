@@ -7,19 +7,34 @@ const compression = require('compression');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8000;
 
 // Cache for 10 minutes
 const cache = new NodeCache({ stdTTL: 600 });
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "http://localhost:8000"],
+      fontSrc: ["'self'", "https:"],
+    },
+  },
+}));
 app.use(compression());
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Weather API configuration
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY || 'demo_key';
+// You can get a free API key from: https://openweathermap.org/api
+const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY || '6d055e39ee237af35ca066f35474e9df';
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
 // Helper function to get cache key
@@ -171,4 +186,16 @@ app.get('/api/cache/stats', (req, res) => {
 app.listen(port, () => {
   console.log(`🌤️  Weather API server running on port ${port}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 Open your browser and go to: http://localhost:${port}`);
+  
+  // Auto-open browser (optional)
+  const open = (url) => {
+    const start = (process.platform == 'darwin'? 'open': process.platform == 'win32'? 'start': 'xdg-open');
+    require('child_process').exec(start + ' ' + url);
+  };
+  
+  // Auto-open browser
+  setTimeout(() => {
+    open(`http://localhost:${port}`);
+  }, 1000); // Wait 1 second for server to fully start
 }); 
