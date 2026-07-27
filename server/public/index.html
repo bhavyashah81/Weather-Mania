@@ -252,6 +252,7 @@
         <!-- Action Buttons -->
         <div class="buttons">
             <button class="location-btn" id="locationBtn">📍 Use My Location</button>
+            <button class="location-btn" id="unitToggleBtn" aria-label="Toggle temperature units" title="Toggle between Celsius and Fahrenheit">🌡️ °C / °F</button>
         </div>
 
         <!-- Error Message -->
@@ -367,6 +368,7 @@
             searchForm: document.getElementById('searchForm'),
             searchInput: document.getElementById('searchInput'),
             locationBtn: document.getElementById('locationBtn'),
+            unitToggleBtn: document.getElementById('unitToggleBtn'),
             error: document.getElementById('error'),
             loading: document.getElementById('loading'),
             weatherCard: document.getElementById('weatherCard'),
@@ -390,6 +392,41 @@
             tipsContainer: document.getElementById('tipsContainer'),
             weatherTips: document.getElementById('weatherTips')
         };
+
+        // Temperature unit preference: 'C' (default) or 'F', persisted in localStorage.
+        // All API data is stored/processed in Celsius; conversion happens at render time.
+        const UNIT_STORAGE_KEY = 'weatherMania.tempUnit';
+        let tempUnit = (localStorage.getItem(UNIT_STORAGE_KEY) === 'F') ? 'F' : 'C';
+
+        // Cache the most recent payloads so toggling units doesn't require a re-fetch.
+        let lastCurrentData = null;
+        let lastForecastData = null;
+
+        function cToF(c) {
+            return (c * 9) / 5 + 32;
+        }
+
+        function formatTemp(celsius) {
+            if (celsius === null || celsius === undefined || Number.isNaN(celsius)) return '-';
+            const value = tempUnit === 'F' ? cToF(celsius) : celsius;
+            return `${Math.round(value)}°${tempUnit}`;
+        }
+
+        function updateUnitToggleLabel() {
+            const next = tempUnit === 'C' ? 'F' : 'C';
+            elements.unitToggleBtn.textContent = `🌡️ Switch to °${next}`;
+        }
+
+        function setTempUnit(unit) {
+            tempUnit = unit === 'F' ? 'F' : 'C';
+            localStorage.setItem(UNIT_STORAGE_KEY, tempUnit);
+            updateUnitToggleLabel();
+            if (lastCurrentData) displayWeather(lastCurrentData);
+            if (lastForecastData) {
+                displayForecast(lastForecastData);
+                displayHourlyForecast(lastForecastData);
+            }
+        }
 
         function showError(message) {
             elements.error.textContent = message;
@@ -424,11 +461,12 @@
         }
 
         function displayWeather(data) {
+            lastCurrentData = data;
             elements.location.innerHTML = `📍 ${data.name}, ${data.sys.country}`;
             elements.weatherIcon.textContent = getWeatherEmoji(data.weather[0].main);
-            elements.temperature.textContent = `${Math.round(data.main.temp)}°C`;
+            elements.temperature.textContent = formatTemp(data.main.temp);
             elements.description.textContent = data.weather[0].description;
-            elements.feelsLike.innerHTML = `🌡️ Feels like ${Math.round(data.main.feels_like)}°C`;
+            elements.feelsLike.innerHTML = `🌡️ Feels like ${formatTemp(data.main.feels_like)}`;
             
             // Basic metrics
             elements.humidity.textContent = `${data.main.humidity}%`;
@@ -540,6 +578,7 @@
         }
 
         function displayForecast(forecastData) {
+            lastForecastData = forecastData;
             // Get daily forecasts (every 24 hours, at noon)
             const dailyForecasts = [];
             const processedDays = new Set();
@@ -565,7 +604,7 @@
                         <div style="font-weight: bold; margin-bottom: 0.5rem;">${dayName}</div>
                         <div style="font-size: 2rem; margin: 0.5rem 0;">${emoji}</div>
                         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.25rem;">
-                            ${Math.round(day.main.temp)}°C
+                            ${formatTemp(day.main.temp)}
                         </div>
                         <div style="font-size: 0.9rem; opacity: 0.8; text-transform: capitalize;">
                             ${day.weather[0].description}
@@ -598,7 +637,7 @@
                         <div style="font-weight: bold; margin-bottom: 0.5rem;">${time}</div>
                         <div style="font-size: 1.5rem; margin: 0.5rem 0;">${emoji}</div>
                         <div style="font-size: 1rem; font-weight: bold; margin-bottom: 0.25rem;">
-                            ${Math.round(hour.main.temp)}°C
+                            ${formatTemp(hour.main.temp)}
                         </div>
                         <div style="font-size: 0.8rem; opacity: 0.8;">
                             💧 ${hour.main.humidity}%
@@ -664,6 +703,12 @@
         });
 
         elements.locationBtn.addEventListener('click', getUserLocation);
+
+        elements.unitToggleBtn.addEventListener('click', () => {
+            setTempUnit(tempUnit === 'C' ? 'F' : 'C');
+        });
+
+        updateUnitToggleLabel();
 
         // Initialize with user's location
         getUserLocation();
